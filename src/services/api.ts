@@ -128,7 +128,7 @@ class ApiService {
       formData.append('image', image);
     }
     if (isPrivate !== undefined) {
-      formData.append('is_private', isPrivate.toString());
+      formData.append('is_private', isPrivate ? '1' : '0');
     }
 
     const url = `${API_BASE_URL}/posts`;
