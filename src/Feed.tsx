@@ -913,6 +913,45 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
                             </div>
                           </div>
                         </div>
+                        <div className="col-xl-3 col-lg-3 col-md-4 col-sm-4 col">
+                          <div className="_feed_inner_public_story _b_radious6">
+                            <div className="_feed_inner_public_story_image">
+                              <img src="assets/images/card_ppl2.png" alt="Image" className="_public_story_img"/>
+                              <div className="_feed_inner_pulic_story_txt">
+                                <p className="_feed_inner_pulic_story_para">Ryan Roslansky</p>
+                              </div>
+                              <div className="_feed_inner_public_mini">
+                                <img src="assets/images/mini_pic.png" alt="Image" className="_public_mini_img"/>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-xl-3 col-lg-3 col-md-4 col-sm-4 _custom_mobile_none">
+                          <div className="_feed_inner_public_story _b_radious6">
+                            <div className="_feed_inner_public_story_image">
+                              <img src="assets/images/card_ppl3.png" alt="Image" className="_public_story_img"/>
+                              <div className="_feed_inner_pulic_story_txt">
+                                <p className="_feed_inner_pulic_story_para">Ryan Roslansky</p>
+                              </div>
+                              <div className="_feed_inner_public_mini">
+                                <img src="assets/images/mini_pic.png" alt="Image" className="_public_mini_img"/>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-xl-3 col-lg-3 col-md-4 col-sm-4 _custom_none">
+                          <div className="_feed_inner_public_story _b_radious6">
+                            <div className="_feed_inner_public_story_image">
+                              <img src="assets/images/card_ppl4.png" alt="Image" className="_public_story_img"/>
+                              <div className="_feed_inner_pulic_story_txt">
+                                <p className="_feed_inner_pulic_story_para">Ryan Roslansky</p>
+                              </div>
+                              <div className="_feed_inner_public_mini">
+                                <img src="assets/images/mini_pic.png" alt="Image" className="_public_mini_img"/>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     
