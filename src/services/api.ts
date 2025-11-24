@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8002/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 interface RegisterData {
   first_name: string;
@@ -48,7 +48,7 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = this.getToken();
-    
+
     const config: RequestInit = {
       ...options,
       headers: {
@@ -62,11 +62,11 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Request failed');
       }
-      
+
       return data;
     } catch (error) {
       console.error('API Error:', error);
@@ -79,11 +79,11 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    
+
     if (response.success && response.token) {
       this.setToken(response.token);
     }
-    
+
     return response;
   }
 
@@ -92,11 +92,11 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    
+
     if (response.success && response.token) {
       this.setToken(response.token);
     }
-    
+
     return response;
   }
 
@@ -104,7 +104,7 @@ class ApiService {
     const response = await this.request('/logout', {
       method: 'POST',
     });
-    
+
     this.removeToken();
     return response;
   }
@@ -133,7 +133,7 @@ class ApiService {
 
     const url = `${API_BASE_URL}/posts`;
     const token = this.getToken();
-    
+
     const config: RequestInit = {
       method: 'POST',
       headers: {
@@ -146,11 +146,11 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Request failed');
       }
-      
+
       return data;
     } catch (error) {
       console.error('API Error:', error);

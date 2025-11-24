@@ -63,8 +63,8 @@ class PostController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'content' => 'required|string|max:5000',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'content' => 'required_without:image|nullable|string|max:5000',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif',
             'is_private' => 'nullable|boolean',
         ]);
 
@@ -86,7 +86,7 @@ class PostController extends Controller
 
         $post = Post::create([
             'user_id' => auth()->id(),
-            'content' => $request->content,
+            'content' => $request->content ?? '',
             'image_url' => $imageUrl,
             'is_private' => $request->boolean('is_private', false),
         ]);

@@ -1595,6 +1595,7 @@
     -webkit-box-align: start;
         -ms-flex-align: start;
             align-items: start;
+            width: 100%;
 }
 ._feed_inner_text_area_box_form textarea {
     width: 100%;
@@ -1617,6 +1618,7 @@
     -webkit-box-pack: justify;
         -ms-flex-pack: justify;
             justify-content: space-between;
+            width: 100%;
 }
 ._feed_inner_text_area_item {
     display: -webkit-box;
@@ -6020,3 +6022,9 @@
     margin:0 6px 0 0;
 }
 /*--- chat mobile seetings css end ----*/
+
+
+._feed_inner_post_image {
+    display: flex;
+    gap: 15px;
+}
