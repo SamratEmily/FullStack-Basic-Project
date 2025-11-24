@@ -1190,7 +1190,7 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
                                             <li onClick={() => setActiveReplyId(activeReplyId === comment.id ? null : comment.id)} style={{cursor: 'pointer'}}>
                                               <span>Reply.</span>
                                             </li>
-                                            <li><span className="_time_link">{comment.created_at}</span></li>
+                                            <li className="showing_time"><span className="_time_link">{comment.created_at}</span></li>
                                           </ul>
                                         </div>
                                       </div>
@@ -1230,7 +1230,7 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
                                                   <li onClick={() => handleLikeReply(post.id, comment.id, reply.id)} style={{cursor: 'pointer'}}>
                                                     <span style={{color: reply.is_liked ? '#377DFF' : ''}}>Like.</span>
                                                   </li>
-                                                  <li><span className="_time_link">{reply.created_at}</span></li>
+                                                  <li className='showing_time'><span className="_time_link">{reply.created_at}</span></li>
                                                 </ul>
                                               </div>
                                             </div>

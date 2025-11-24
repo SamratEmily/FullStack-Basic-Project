@@ -5980,10 +5980,16 @@
 ._comment_reply_list {
     display: flex;
     align-items: center;
+    gap: 100px;
 }
 ._comment_reply_list li {
     margin:0 2px;
 }
+
+._comment_reply_list .showing_time {
+    min-width: 50%;
+}
+    
 ._comment_reply_list li span {
     color:var(--color6);
     font-size: 14px;
