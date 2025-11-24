@@ -16,4 +16,10 @@ Route::middleware('auth:api')->group(function () {
     // Posts
     Route::get('/posts', [\App\Http\Controllers\PostController::class, 'index']);
     Route::post('/posts', [\App\Http\Controllers\PostController::class, 'store']);
+    Route::post('/posts/{id}/like', [\App\Http\Controllers\PostController::class, 'like']);
+    Route::get('/posts/{id}/comments', [\App\Http\Controllers\PostController::class, 'getComments']);
+    Route::post('/posts/{id}/comments', [\App\Http\Controllers\PostController::class, 'addComment']);
+    Route::post('/comments/{id}/like', [\App\Http\Controllers\PostController::class, 'likeComment']);
+    Route::post('/comments/{id}/replies', [\App\Http\Controllers\PostController::class, 'addReply']);
+    Route::post('/replies/{id}/like', [\App\Http\Controllers\PostController::class, 'likeReply']);
 });

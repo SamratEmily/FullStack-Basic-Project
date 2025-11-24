@@ -19,6 +19,14 @@ interface ApiResponse<T = any> {
   user?: T;
   token?: string;
   errors?: Record<string, string[]>;
+  posts?: any[];
+  post?: any;
+  comments?: any[];
+  comment?: any;
+  reply?: any;
+  is_liked?: boolean;
+  likes_count?: number;
+  likers?: any[];
 }
 
 class ApiService {
@@ -113,10 +121,78 @@ class ApiService {
     });
   }
 
-  async createPost(content: string): Promise<ApiResponse> {
-    return this.request('/posts', {
+  async createPost(content: string, image?: File, isPrivate?: boolean): Promise<ApiResponse> {
+    const formData = new FormData();
+    formData.append('content', content);
+    if (image) {
+      formData.append('image', image);
+    }
+    if (isPrivate !== undefined) {
+      formData.append('is_private', isPrivate.toString());
+    }
+
+    const url = `${API_BASE_URL}/posts`;
+    const token = this.getToken();
+    
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+      body: formData,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('API Error:', error);
+      throw error;
+    }
+  }
+
+  async likePost(postId: number): Promise<ApiResponse> {
+    return this.request(`/posts/${postId}/like`, {
+      method: 'POST',
+    });
+  }
+
+  async getComments(postId: number): Promise<ApiResponse> {
+    return this.request(`/posts/${postId}/comments`, {
+      method: 'GET',
+    });
+  }
+
+  async addComment(postId: number, content: string): Promise<ApiResponse> {
+    return this.request(`/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify({ content }),
+    });
+  }
+
+  async likeComment(commentId: number): Promise<ApiResponse> {
+    return this.request(`/comments/${commentId}/like`, {
+      method: 'POST',
+    });
+  }
+
+  async addReply(commentId: number, content: string): Promise<ApiResponse> {
+    return this.request(`/comments/${commentId}/replies`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async likeReply(replyId: number): Promise<ApiResponse> {
+    return this.request(`/replies/${replyId}/like`, {
+      method: 'POST',
     });
   }
 
