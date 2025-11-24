@@ -23,6 +23,14 @@ class PostController extends Controller
                       ->orWhere('user_id', $userId);
             })
             ->withCount('likes')
+            ->with(['comments' => function($query) {
+                $query->orderBy('created_at', 'asc')
+                      ->withCount('likes')
+                      ->with(['user:id,first_name,last_name', 'likes.user:id,first_name,last_name', 'replies' => function($q) {
+                          $q->withCount('likes')
+                            ->with(['user:id,first_name,last_name', 'likes.user:id,first_name,last_name']);
+                      }]);
+            }])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($post) use ($userId) {
@@ -35,6 +43,41 @@ class PostController extends Controller
                         'full_name' => $like->user->first_name . ' ' . $like->user->last_name,
                     ];
                 });
+
+                $comments = $post->comments->map(function ($comment) use ($userId) {
+                    $isLiked = $comment->likes->contains('user_id', $userId);
+                    $replies = $comment->replies->map(function ($reply) use ($userId) {
+                        $isLiked = $reply->likes->contains('user_id', $userId);
+                        return [
+                            'id' => $reply->id,
+                            'content' => $reply->content,
+                            'created_at' => $reply->created_at->diffForHumans(),
+                            'likes_count' => $reply->likes_count,
+                            'is_liked' => $isLiked,
+                            'user' => [
+                                'id' => $reply->user->id,
+                                'first_name' => $reply->user->first_name,
+                                'last_name' => $reply->user->last_name,
+                                'full_name' => $reply->user->first_name . ' ' . $reply->user->last_name,
+                            ],
+                        ];
+                    });
+
+                    return [
+                        'id' => $comment->id,
+                        'content' => $comment->content,
+                        'created_at' => $comment->created_at->diffForHumans(),
+                        'likes_count' => $comment->likes_count,
+                        'is_liked' => $isLiked,
+                        'replies' => $replies,
+                        'user' => [
+                            'id' => $comment->user->id,
+                            'first_name' => $comment->user->first_name,
+                            'last_name' => $comment->user->last_name,
+                            'full_name' => $comment->user->first_name . ' ' . $comment->user->last_name,
+                        ],
+                    ];
+                });
                 
                 return [
                     'id' => $post->id,
@@ -45,6 +88,7 @@ class PostController extends Controller
                     'likes_count' => $post->likes_count,
                     'is_liked' => $isLiked,
                     'likers' => $likers,
+                    'comments' => $comments,
                     'user' => [
                         'id' => $post->user->id,
                         'first_name' => $post->user->first_name,

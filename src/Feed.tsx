@@ -5,12 +5,44 @@ import '../assets/css/common.css';
 import '../assets/css/main.css';
 import '../assets/css/responsive.css';
 
+interface Reply {
+  id: number;
+  content: string;
+  created_at: string;
+  likes_count: number;
+  is_liked: boolean;
+  user: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+  };
+}
+
+interface Comment {
+  id: number;
+  content: string;
+  created_at: string;
+  likes_count: number;
+  is_liked: boolean;
+  replies: Reply[];
+  user: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+  };
+}
+
 interface Post {
   id: number;
   content: string;
   image_url?: string;
   is_private: boolean;
   created_at: string;
+  likes_count: number;
+  is_liked: boolean;
+  comments?: Comment[];
   user: {
     id: number;
     first_name: string;
@@ -24,6 +56,7 @@ interface User {
   first_name: string;
   last_name: string;
   email: string;
+  image_url?: string;
 }
 
 interface FeedProps {
@@ -39,6 +72,14 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [error, setError] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Comments state
+  const [activePostId, setActivePostId] = useState<number | null>(null);
+  const [postComments, setPostComments] = useState<Record<number, Comment[]>>({});
+  const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
+  const [replyInputs, setReplyInputs] = useState<Record<number, string>>({});
+  const [activeReplyId, setActiveReplyId] = useState<number | null>(null);
+
   const layoutRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const notificationDropdownClass = showNotifications ? 'show' : '';
@@ -92,7 +133,17 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
     try {
       const response = await api.getPosts();
       if (response.success && response.posts) {
-        setPosts(response.posts as Post[]);
+        const fetchedPosts = response.posts as Post[];
+        setPosts(fetchedPosts);
+        
+        // Initialize comments state from fetched posts
+        const commentsMap: Record<number, Comment[]> = {};
+        fetchedPosts.forEach(post => {
+          if (post.comments && post.comments.length > 0) {
+            commentsMap[post.id] = post.comments;
+          }
+        });
+        setPostComments(prev => ({ ...prev, ...commentsMap }));
       }
     } catch (error) {
       console.error('Failed to fetch posts:', error);
@@ -116,6 +167,149 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
     } catch (error: any) {
       console.error('Failed to create post:', error);
       setError(error.message || 'Failed to create post');
+    }
+  };
+
+  const handleLikePost = async (postId: number) => {
+    try {
+      const response = await api.likePost(postId);
+      if (response.success) {
+        setPosts(posts.map(post => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              is_liked: response.is_liked!,
+              likes_count: response.likes_count!
+            };
+          }
+          return post;
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to like post:', error);
+    }
+  };
+
+  const handleToggleComments = async (postId: number) => {
+    if (activePostId === postId) {
+      setActivePostId(null);
+      return;
+    }
+
+    setActivePostId(postId);
+    if (!postComments[postId]) {
+      try {
+        const response = await api.getComments(postId);
+        if (response.success && response.comments) {
+          setPostComments(prev => ({
+            ...prev,
+            [postId]: response.comments!
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch comments:', error);
+      }
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent, postId: number) => {
+    e.preventDefault();
+    const content = commentInputs[postId];
+    if (!content?.trim()) return;
+
+    try {
+      const response = await api.addComment(postId, content);
+      if (response.success && response.comment) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), response.comment]
+        }));
+        setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+      }
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+    }
+  };
+
+  const handleLikeComment = async (postId: number, commentId: number) => {
+    try {
+      const response = await api.likeComment(commentId);
+      if (response.success) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: prev[postId].map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                is_liked: response.is_liked!,
+                likes_count: response.likes_count!
+              };
+            }
+            return comment;
+          })
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to like comment:', error);
+    }
+  };
+
+  const handleAddReply = async (e: React.FormEvent, postId: number, commentId: number) => {
+    e.preventDefault();
+    const content = replyInputs[commentId];
+    if (!content?.trim()) return;
+
+    try {
+      const response = await api.addReply(commentId, content);
+      if (response.success && response.reply) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: prev[postId].map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                replies: [...(comment.replies || []), response.reply]
+              };
+            }
+            return comment;
+          })
+        }));
+        setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
+        setActiveReplyId(null);
+      }
+    } catch (error) {
+      console.error('Failed to add reply:', error);
+    }
+  };
+
+  const handleLikeReply = async (postId: number, commentId: number, replyId: number) => {
+    try {
+      const response = await api.likeReply(replyId);
+      if (response.success) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: prev[postId].map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                replies: comment.replies.map(reply => {
+                  if (reply.id === replyId) {
+                    return {
+                      ...reply,
+                      is_liked: response.is_liked!,
+                      likes_count: response.likes_count!
+                    };
+                  }
+                  return reply;
+                })
+              };
+            }
+            return comment;
+          })
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to like reply:', error);
     }
   };
 
@@ -826,31 +1020,43 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
 
                     {/* Posts Feed */}
                     {posts.map((post) => (
-                      <div key={post.id} className="_feed_inner_area _padd_t24 _padd_b24 _padd_r24 _padd_l24 _b_radious6 _mar_b16"> 
-                        <div className="_feed_inner_post_middle">
-                          <div className="_feed_inner_timeline_post_box">
-													<div className="_feed_inner_timeline_post_box_image">
-														<img src="assets/images/post_img.png" alt="" className="_post_img"/>
-													</div>
-													<div className="_feed_inner_timeline_post_box_txt">
-														<h4 className="_feed_inner_timeline_post_box_title">{post.user.full_name}</h4>
-														<p className="_feed_inner_timeline_post_box_para">{post.created_at}. 
-															<a href="#0">{post.is_private ? 'Private' : 'Public'}</a>
-														</p>
-													</div>
-												</div>
+                      <div key={post.id} className="_feed_inner_timeline_post_area _b_radious6 _padd_b24 _padd_t24 _mar_b16">
+                        <div className="_feed_inner_timeline_content _padd_r24 _padd_l24">
+                          <div className="_feed_inner_timeline_post_top">
+                            <div className="_feed_inner_timeline_post_box">
+                              <div className="_feed_inner_timeline_post_box_image">
+                                <img src="assets/images/post_img.png" alt="" className="_post_img"/>
+                              </div>
+                              <div className="_feed_inner_timeline_post_box_txt">
+                                <h4 className="_feed_inner_timeline_post_box_title">{post.user.full_name}</h4>
+                                <p className="_feed_inner_timeline_post_box_para">{post.created_at}. 
+                                  <a href="#0">{post.is_private ? 'Private' : 'Public'}</a>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="_feed_inner_timeline_post_box_dropdown">
+                              <div className="_feed_timeline_post_dropdown">
+                                <button className="_feed_timeline_post_dropdown_link">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="4" height="17" fill="none" viewBox="0 0 4 17">
+                                    <circle cx="2" cy="2" r="2" fill="#C4C4C4" />
+                                    <circle cx="2" cy="8" r="2" fill="#C4C4C4" />
+                                    <circle cx="2" cy="15" r="2" fill="#C4C4C4" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          
                           {post.content && (
-                            <p className="_feed_inner_post_middle_para">
-                              {post.content}
-                            </p>
+                            <h4 className="_feed_inner_timeline_post_title" style={{fontWeight: 'normal', fontSize: '16px', lineHeight: '26px', color: '#666666'}}>{post.content}</h4>
                           )}
+                          
                           {post.image_url && (
-                            <div className="mt-3">
+                            <div className="_feed_inner_timeline_image">
                               <img 
                                 src={`http://localhost:8000${post.image_url}`} 
                                 alt="Post content" 
-                                className="img-fluid rounded" 
-                                style={{ maxHeight: '400px', width: '100%', objectFit: 'cover' }}
+                                className="_time_img"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
                                 }}
@@ -858,6 +1064,213 @@ const Feed: React.FC<FeedProps> = ({ onLogout }) => {
                             </div>
                           )}
                         </div>
+
+                        <div className="_feed_inner_timeline_total_reacts _padd_r24 _padd_l24 _mar_b26">
+                          <div className="_feed_inner_timeline_total_reacts_image">
+                            <img src="assets/images/react_img1.png" alt="Image" className="_react_img1" />
+                            <img src="assets/images/react_img2.png" alt="Image" className="_react_img" />
+                            <p className="_feed_inner_timeline_total_reacts_para">{post.likes_count}</p>
+                          </div>
+                          <div className="_feed_inner_timeline_total_reacts_txt">
+                            <p className="_feed_inner_timeline_total_reacts_para1">
+                              <a href="#0" onClick={(e) => { e.preventDefault(); handleToggleComments(post.id); }}>
+                                <span>{postComments[post.id]?.length || 0}</span> Comment
+                              </a>
+                            </p>
+                            <p className="_feed_inner_timeline_total_reacts_para2"><span>0</span> Share</p>
+                          </div>
+                        </div>
+
+                        <div className="_feed_inner_timeline_reaction">
+                          <button 
+                            className={`_feed_inner_timeline_reaction_emoji _feed_reaction ${post.is_liked ? '_feed_reaction_active' : ''}`}
+                            onClick={() => handleLikePost(post.id)}
+                          >
+                            <span className="_feed_inner_timeline_reaction_link"> 
+                              <span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="none" viewBox="0 0 19 19">
+                                  <path fill={post.is_liked ? "#FFCC4D" : "#666"} d="M9.5 19a9.5 9.5 0 100-19 9.5 9.5 0 000 19z"/>
+                                  <path fill="#664500" d="M9.5 11.083c-1.912 0-3.181-.222-4.75-.527-.358-.07-1.056 0-1.056 1.055 0 2.111 2.425 4.75 5.806 4.75 3.38 0 5.805-2.639 5.805-4.75 0-1.055-.697-1.125-1.055-1.055-1.57.305-2.838.527-4.75.527z"/>
+                                  <path fill="#fff" d="M4.75 11.611s1.583.528 4.75.528 4.75-.528 4.75-.528-1.056 2.111-4.75 2.111-4.75-2.11-4.75-2.11z"/>
+                                  <path fill="#664500" d="M6.333 8.972c.729 0 1.32-.827 1.32-1.847s-.591-1.847-1.32-1.847c-.729 0-1.32.827-1.32 1.847s.591 1.847 1.32 1.847zM12.667 8.972c.729 0 1.32-.827 1.32-1.847s-.591-1.847-1.32-1.847c-.729 0-1.32.827-1.32 1.847s.591 1.847 1.32 1.847z"/>
+                                </svg>
+                                Like
+                              </span>
+                            </span>
+                          </button>
+                          <button 
+                            className="_feed_inner_timeline_reaction_comment _feed_reaction"
+                            onClick={() => handleToggleComments(post.id)}
+                          >
+                            <span className="_feed_inner_timeline_reaction_link"> 
+                              <span>
+                                <svg className="_reaction_svg" xmlns="http://www.w3.org/2000/svg" width="21" height="21" fill="none" viewBox="0 0 21 21">
+                                  <path stroke="#000" d="M1 10.5c0-.464 0-.696.009-.893A9 9 0 019.607 1.01C9.804 1 10.036 1 10.5 1v0c.464 0 .696 0 .893.009a9 9 0 018.598 8.598c.009.197.009.429.009.893v6.046c0 1.36 0 2.041-.317 2.535a2 2 0 01-.602.602c-.494.317-1.174.317-2.535.317H10.5c-.464 0-.696 0-.893-.009a9 9 0 01-8.598-8.598C1 11.196 1 10.964 1 10.5v0z"/>
+                                  <path stroke="#000" strokeLinecap="round" strokeLinejoin="round" d="M6.938 9.313h7.125M10.5 14.063h3.563"/>
+                                </svg>                                                      
+                                Comment
+                              </span>
+                            </span>
+                          </button>
+                          <button className="_feed_inner_timeline_reaction_share _feed_reaction">
+                            <span className="_feed_inner_timeline_reaction_link"> 
+                              <span>
+                                <svg className="_reaction_svg" xmlns="http://www.w3.org/2000/svg" width="24" height="21" fill="none" viewBox="0 0 24 21">
+                                  <path stroke="#000" strokeLinejoin="round" d="M23 10.5L12.917 1v5.429C3.267 6.429 1 13.258 1 20c2.785-3.52 5.248-5.429 11.917-5.429V20L23 10.5z"/>
+                                </svg>                                                 
+                                Share
+                              </span>
+                            </span>
+                          </button>
+                        </div>
+
+                        {(activePostId === post.id || (postComments[post.id] && postComments[post.id].length > 0)) && (
+                          <>
+                            <div className="_feed_inner_timeline_cooment_area"> 
+                              <div className="_feed_inner_comment_box">
+                                <form className="_feed_inner_comment_box_form" onSubmit={(e) => handleAddComment(e, post.id)}>
+                                  <div className="_feed_inner_comment_box_content">
+                                    <div className="_feed_inner_comment_box_content_image">
+                                      <img src={currentUser?.image_url ? `http://localhost:8000${currentUser.image_url}` : "assets/images/profile.png"} alt="" className="_comment_img" />
+                                    </div>
+                                    <div className="_feed_inner_comment_box_content_txt">
+                                      <textarea 
+                                        className="form-control _comment_textarea" 
+                                        placeholder="Write a comment" 
+                                        id="floatingTextarea2"
+                                        value={commentInputs[post.id] || ''}
+                                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleAddComment(e, post.id);
+                                          }
+                                        }}
+                                      ></textarea>
+                                    </div>
+                                  </div>
+                                </form>
+                              </div>
+                            </div>
+
+                            <div className="_timline_comment_main">
+                              {postComments[post.id]?.map(comment => (
+                                <div key={comment.id} className="_comment_main">
+                                  <div className="_comment_image">
+                                    <a href="#0" className="_comment_image_link">
+                                      <img src="assets/images/profile.png" alt="" className="_comment_img1"/>
+                                    </a>
+                                  </div>
+                                  <div className="_comment_area">
+                                    <div className="_comment_details">
+                                      <div className="_comment_details_top">
+                                        <div className="_comment_name">
+                                          <a href="#0">
+                                            <h4 className="_comment_name_title">{comment.user.full_name}</h4>
+                                          </a>
+                                        </div>
+                                      </div>
+                                      <div className="_comment_status">
+                                        <p className="_comment_status_text"><span>{comment.content}</span></p>
+                                      </div>
+                                      <div className="_total_reactions">
+                                        <div className="_total_react">
+                                          <span className="_reaction_like">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-thumbs-up"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                                          </span>
+                                        </div>
+                                        <span className="_total">{comment.likes_count}</span>
+                                      </div>
+                                      <div className="_comment_reply">
+                                        <div className="_comment_reply_num">
+                                          <ul className="_comment_reply_list">
+                                            <li onClick={() => handleLikeComment(post.id, comment.id)} style={{cursor: 'pointer'}}>
+                                              <span style={{color: comment.is_liked ? '#377DFF' : ''}}>Like.</span>
+                                            </li>
+                                            <li onClick={() => setActiveReplyId(activeReplyId === comment.id ? null : comment.id)} style={{cursor: 'pointer'}}>
+                                              <span>Reply.</span>
+                                            </li>
+                                            <li><span className="_time_link">{comment.created_at}</span></li>
+                                          </ul>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Replies */}
+                                    {comment.replies?.map(reply => (
+                                      <div key={reply.id} className="_comment_main" style={{marginLeft: '50px', marginTop: '10px'}}>
+                                        <div className="_comment_image">
+                                          <a href="#0" className="_comment_image_link">
+                                            <img src="assets/images/profile.png" alt="" className="_comment_img1"/>
+                                          </a>
+                                        </div>
+                                        <div className="_comment_area">
+                                          <div className="_comment_details">
+                                            <div className="_comment_details_top">
+                                              <div className="_comment_name">
+                                                <a href="#0">
+                                                  <h4 className="_comment_name_title">{reply.user.full_name}</h4>
+                                                </a>
+                                              </div>
+                                            </div>
+                                            <div className="_comment_status">
+                                              <p className="_comment_status_text"><span>{reply.content}</span></p>
+                                            </div>
+                                            <div className="_total_reactions">
+                                              <div className="_total_react">
+                                                <span className="_reaction_like">
+                                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-thumbs-up"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                                                </span>
+                                              </div>
+                                              <span className="_total">{reply.likes_count}</span>
+                                            </div>
+                                            <div className="_comment_reply">
+                                              <div className="_comment_reply_num">
+                                                <ul className="_comment_reply_list">
+                                                  <li onClick={() => handleLikeReply(post.id, comment.id, reply.id)} style={{cursor: 'pointer'}}>
+                                                    <span style={{color: reply.is_liked ? '#377DFF' : ''}}>Like.</span>
+                                                  </li>
+                                                  <li><span className="_time_link">{reply.created_at}</span></li>
+                                                </ul>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+
+                                    {/* Reply Input */}
+                                    {activeReplyId === comment.id && (
+                                      <div className="_feed_inner_comment_box" style={{marginTop: '10px'}}>
+                                        <form className="_feed_inner_comment_box_form" onSubmit={(e) => handleAddReply(e, post.id, comment.id)}>
+                                          <div className="_feed_inner_comment_box_content">
+                                            <div className="_feed_inner_comment_box_content_image">
+                                              <img src={currentUser?.image_url ? `http://localhost:8000${currentUser.image_url}` : "assets/images/profile.png"} alt="" className="_comment_img" />
+                                            </div>
+                                            <div className="_feed_inner_comment_box_content_txt">
+                                              <textarea 
+                                                className="form-control _comment_textarea" 
+                                                placeholder="Write a reply..." 
+                                                value={replyInputs[comment.id] || ''}
+                                                onChange={(e) => setReplyInputs(prev => ({ ...prev, [comment.id]: e.target.value }))}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleAddReply(e, post.id, comment.id);
+                                                  }
+                                                }}
+                                              ></textarea>
+                                            </div>
+                                          </div>
+                                        </form>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
