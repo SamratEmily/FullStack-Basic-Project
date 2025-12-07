@@ -2,7 +2,7 @@
 
 This project is a full-stack application developed as a selection task for the Full Stack Engineer position at Appifylab. It features a social media feed with functionalities for creating posts, interacting with them (likes, comments), and managing user privacy.
 
-## Project Structure
+## Project Structure ( Laravel with react )
 
 The project is organized into two main parts:
 
